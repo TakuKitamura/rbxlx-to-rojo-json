@@ -129,10 +129,10 @@ fn instance_to_flat_json(
                         find_known_property = true;
                         property_value = json!(value);
                     }
-                    rbx_types::Variant::Ref(_value) => {
+                    rbx_types::Variant::Ref(value) => {
                         // skip
-                        // find_known_property = true;
-                        // property_value = json!(value);
+                        find_known_property = true;
+                        property_value = json!(value);
                     }
                     rbx_types::Variant::Region3(value) => {
                         find_known_property = true;
@@ -250,6 +250,8 @@ fn get_rbxlx_json(rbxlx_path: std::string::String) -> serde_json::Value {
 
     let mut rbxlx_json = json!({});
 
+    let mut all_path = vec![];
+
     while tmp_refs_array.len() > 0 {
         let mut refs_array = Vec::new();
 
@@ -277,10 +279,25 @@ fn get_rbxlx_json(rbxlx_path: std::string::String) -> serde_json::Value {
                     parent_name = root_instance_name.to_string();
                 }
 
+                // println!("{:?}{:?}", access_path_map, parent_name);
+
                 next_access_path = access_path_map[&parent_name].to_vec();
-                next_access_path.append(&mut vec![my_name]);
+                next_access_path.append(&mut vec![my_name.to_string()]);
 
                 let children_refs = instance_item.get("children").unwrap().as_array().unwrap();
+
+                let now_path = format!("/{}", next_access_path.join("/"));
+
+                if all_path.iter().any(|i| i == &now_path) {
+                    next_access_path.pop();
+                    next_access_path.append(&mut vec![format!(
+                        "{}-{}",
+                        my_name,
+                        all_path.iter().filter(|&n| *n == now_path).count() + 1
+                    )]);
+                }
+
+                all_path.push(now_path);
 
                 println!(
                     "/{}, childrenNumber: {:?}",
