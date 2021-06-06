@@ -51,6 +51,21 @@ fn instance_to_flat_json(
                     rbx_types::Variant::CFrame(value) => {
                         find_known_property = true;
                         property_value = json!(value);
+                        let position = &mut property_value["Position"].as_array().unwrap().to_vec();
+                        let orientation =
+                            property_value["Orientation"].as_array().unwrap().to_vec();
+
+                        let flat_orientation = &mut vec![];
+                        for elem in orientation {
+                            let vecter3 = elem.as_array().unwrap().to_vec();
+                            for f in vecter3 {
+                                flat_orientation.push(f);
+                            }
+                        }
+
+                        position.append(flat_orientation);
+
+                        property_value = json!(position);
                     }
                     rbx_types::Variant::Color3(value) => {
                         find_known_property = true;
@@ -101,8 +116,10 @@ fn instance_to_flat_json(
                         property_value = json!(value);
                     }
                     rbx_types::Variant::PhysicalProperties(value) => {
-                        find_known_property = true;
-                        property_value = json!(value);
+                        if json!(value) != json!("Default") {
+                            find_known_property = true;
+                            property_value = json!(value);
+                        }
                     }
                     rbx_types::Variant::Ray(value) => {
                         find_known_property = true;
@@ -112,9 +129,10 @@ fn instance_to_flat_json(
                         find_known_property = true;
                         property_value = json!(value);
                     }
-                    rbx_types::Variant::Ref(value) => {
-                        find_known_property = true;
-                        property_value = json!(value);
+                    rbx_types::Variant::Ref(_value) => {
+                        // skip
+                        // find_known_property = true;
+                        // property_value = json!(value);
                     }
                     rbx_types::Variant::Region3(value) => {
                         find_known_property = true;
@@ -159,7 +177,7 @@ fn instance_to_flat_json(
                     t => println!("Unkown Type: {:?}", t),
                 }
 
-                if find_known_property {
+                if find_known_property && property_value != json!(null) {
                     properties_map.insert(
                         property_name.to_string(),
                         json!({"Type": &type_name, "Value": property_value}),
@@ -245,6 +263,13 @@ fn get_rbxlx_json(rbxlx_path: std::string::String) -> serde_json::Value {
             for next_ref in refs {
                 let instance_item = flat_instances_json.get(&next_ref).unwrap();
 
+                // if plugin access denied class
+                if instance_item["$className"] == "CSGDictionaryService"
+                    || instance_item["$className"] == "NonReplicatedCSGDictionaryService"
+                {
+                    continue;
+                }
+
                 let mut parent_name = instance_item["parentName"].as_str().unwrap().to_string();
                 let my_name = instance_item["name"].as_str().unwrap().to_string();
 
@@ -282,6 +307,7 @@ fn get_rbxlx_json(rbxlx_path: std::string::String) -> serde_json::Value {
                     "$properties": instance_item["$properties"],
 
                 });
+
                 *rbxlx_json.pointer_mut(&path_str).unwrap() = clean_instance_item;
 
                 if children_refs.len() > 0 {
@@ -319,16 +345,27 @@ fn main() {
 
     let rbxlx_json = get_rbxlx_json(rbxlx_path);
 
-    let rojo_json = json!({
+    let mut rojo_json = json!({
         "globIgnorePaths": [
             "**/package.json",
             "**/tsconfig.json"
         ],
-        "name": "test",
+        "name": "rbxlx-to-rojo-json-sample",
         "tree": rbxlx_json["DataModel"]
     });
 
-    let json_str = serde_json::to_string(&rojo_json).unwrap();
+    let config_file = fs::read_to_string("config.json").unwrap();
+
+    let config_json: serde_json::Map<std::string::String, serde_json::Value> =
+        serde_json::from_str(&config_file).unwrap();
+
+    for elem in config_json {
+        let path = elem.0;
+        let value = elem.1;
+        *rojo_json.pointer_mut(&path).unwrap() = json!(value);
+    }
+
+    let json_str = serde_json::to_string_pretty(&rojo_json).unwrap();
 
     let mut file = File::create(&rbxlx_json_output_path).unwrap();
     file.write_all(json_str.as_bytes()).unwrap();
