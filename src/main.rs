@@ -5,6 +5,23 @@ use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
 
+fn get_original_access_path(custom_path: std::string::String) -> std::string::String {
+    let splited = custom_path.split("/");
+
+    let mut ret = "".to_string();
+
+    for v in splited {
+        if v.len() > 0 {
+            ret += "/";
+            let x: Vec<&str> = v.split("@@@").collect();
+            let y = x[0].to_string();
+            ret += &y;
+        }
+    }
+
+    return ret;
+}
+
 fn instance_to_flat_json(
     tree: &rbx_dom_weak::WeakDom,
     instance: &rbx_dom_weak::Instance,
@@ -188,18 +205,31 @@ fn instance_to_flat_json(
 
         instance_map[&*child_instance_ref]["$className"] = json!(child_instance.class);
         instance_map[&*child_instance_ref]["$properties"] = json!(properties_map);
-        instance_map[&*child_instance_ref]["name"] = json!(child_instance.name);
+        instance_map[&*child_instance_ref]["name"] = json!(format!(
+            "{}@@@{}",
+            child_instance.name,
+            child_instance.referent()
+        ));
+        instance_map[&*child_instance_ref]["originalName"] = json!(child_instance.name);
         instance_map[&*child_instance_ref]["children"] = json!(child_instance.children());
 
         instance_map[&*child_instance_ref]["parentClass"] = json!(instance.class);
-        instance_map[&*child_instance_ref]["parentName"] = json!(instance.name);
+        instance_map[&*child_instance_ref]["parentName"] =
+            json!(format!("{}@@@{}", instance.name, instance.referent()));
+
+        instance_map[&*child_instance_ref]["originalParentName"] = json!(instance.name);
         instance_map[&*child_instance_ref]["parentRef"] = json!(instance.referent());
 
         instance_to_flat_json(tree, child_instance, instance_map);
     }
 }
 
-fn get_rbxlx_json(rbxlx_path: std::string::String) -> serde_json::Value {
+fn get_rbxlx_json(
+    rbxlx_path: std::string::String,
+) -> (
+    serde_json::Value,
+    std::collections::HashMap<std::string::String, std::string::String>,
+) {
     let model_file = match fs::read_to_string(rbxlx_path) {
         Ok(model_file) => model_file,
         Err(error) => panic!("problem opening the file: {:?}", error),
@@ -224,13 +254,19 @@ fn get_rbxlx_json(rbxlx_path: std::string::String) -> serde_json::Value {
     flat_instances_json[&*root_instance_ref]["$className"] = json!(root_instance.class);
     flat_instances_json[&*root_instance_ref]["$properties"] = json!(root_instance.properties);
 
-    flat_instances_json[&*root_instance_ref]["name"] = json!("DataModel");
+    flat_instances_json[&*root_instance_ref]["name"] = json!(format!(
+        "{}@@@{}",
+        root_instance.name,
+        root_instance.referent()
+    ));
     flat_instances_json[&*root_instance_ref]["children"] = json!(root_instance.children());
     flat_instances_json[&*root_instance_ref]["parentClass"] = json!("");
     flat_instances_json[&*root_instance_ref]["parentName"] = json!("");
     flat_instances_json[&*root_instance_ref]["parentRef"] = json!("");
 
     instance_to_flat_json(&tree, root_instance, &mut flat_instances_json);
+
+    // println!("{:?}", flat_instances_json);
 
     let mut tmp_refs_array = Vec::new();
 
@@ -242,6 +278,24 @@ fn get_rbxlx_json(rbxlx_path: std::string::String) -> serde_json::Value {
             tmp_refs_array.push(vec![child_ref.to_string()]);
         }
     }
+
+    let mut path_dict: HashMap<String, String> = HashMap::new();
+
+    path_dict.insert(
+        "/globIgnorePaths".to_string(),
+        "/globIgnorePaths".to_string(),
+    );
+    path_dict.insert("/name".to_string(), "/name".to_string());
+
+    let root_instance_original_name = get_original_access_path(
+        "/".to_string() + &root_instance_name.as_str().unwrap().to_string(),
+    );
+
+    // println!("777: {}", root_instance_original_name);
+    path_dict.insert(
+        root_instance_original_name,
+        root_instance_name.as_str().unwrap().to_string(),
+    );
 
     let mut next_access_path: Vec<String> = Vec::new();
     let mut i = 0;
@@ -259,7 +313,7 @@ fn get_rbxlx_json(rbxlx_path: std::string::String) -> serde_json::Value {
         tmp_refs_array = Vec::new();
 
         i = i + 1;
-        println!("--level{:?}--", i);
+        // println!("--level{:?}--", i);
 
         for refs in refs_array {
             for next_ref in refs {
@@ -291,19 +345,13 @@ fn get_rbxlx_json(rbxlx_path: std::string::String) -> serde_json::Value {
                 if all_path.iter().any(|i| i == &now_path) {
                     next_access_path.pop();
                     next_access_path.append(&mut vec![format!(
-                        "{}-{}",
+                        "{}@@@{}",
                         my_name,
-                        all_path.iter().filter(|&n| *n == now_path).count() + 1
+                        next_ref // all_path.iter().filter(|&n| *n == now_path).count() + 1
                     )]);
                 }
 
                 all_path.push(now_path);
-
-                println!(
-                    "/{}, childrenNumber: {:?}",
-                    next_access_path.join("/"),
-                    children_refs.len()
-                );
 
                 let mut path_str = "".to_string();
                 for access_path in &next_access_path {
@@ -338,6 +386,8 @@ fn get_rbxlx_json(rbxlx_path: std::string::String) -> serde_json::Value {
 
                     let access_path_map_key = &next_access_path[next_access_path.len() - 1];
 
+                    // println!("next_access_path {:?}", next_access_path);
+
                     access_path_map
                         .insert(access_path_map_key.to_string(), next_access_path.to_vec());
                 }
@@ -345,7 +395,21 @@ fn get_rbxlx_json(rbxlx_path: std::string::String) -> serde_json::Value {
         }
     }
 
-    return rbxlx_json;
+    // println!("{:?}", all_path);
+
+    // for path in all_path {
+    //     println!("path: {}", path);
+    // }
+
+    for custom_path in &all_path {
+        let original_path = get_original_access_path(custom_path.to_string());
+
+        path_dict.insert(original_path.to_string(), custom_path.to_string());
+    }
+
+    // println!("{:?}", path_dict);
+
+    return (rbxlx_json, path_dict);
 }
 
 fn main() {
@@ -360,7 +424,13 @@ fn main() {
 
     let rbxlx_json_output_path = args[2].to_string();
 
-    let rbxlx_json = get_rbxlx_json(rbxlx_path);
+    let (mut rbxlx_json, path_dict) = get_rbxlx_json(rbxlx_path);
+
+    // println!("{}, {}", rbxlx_json, &path_dict[&"/DataModel".to_string()]);
+
+    let root_path = &path_dict[&"/DataModel".to_string()];
+
+    let tree = rbxlx_json.pointer_mut(root_path).unwrap();
 
     let mut rojo_json = json!({
         "globIgnorePaths": [
@@ -368,7 +438,7 @@ fn main() {
             "**/tsconfig.json"
         ],
         "name": "rbxlx-to-rojo-json-sample",
-        "tree": rbxlx_json["DataModel"]
+        "tree": tree
     });
 
     let config_file = fs::read_to_string("config.json").unwrap();
@@ -377,9 +447,14 @@ fn main() {
         serde_json::from_str(&config_file).unwrap();
 
     for elem in config_json {
-        let path = elem.0;
+        // /DataModel@@@c35b90713fc0caaf236f3df0b5d4452c
+        let path = elem.0.replace("/tree", "/DataModel");
         let value = elem.1;
-        *rojo_json.pointer_mut(&path).unwrap() = json!(value);
+        let custom_path = &path_dict[&path].to_string().replace(root_path, "/tree");
+
+        // println!("{} {}", rojo_json, custom_path);
+
+        *rojo_json.pointer_mut(custom_path).unwrap() = json!(value);
     }
 
     let json_str = serde_json::to_string_pretty(&rojo_json).unwrap();
