@@ -275,6 +275,7 @@ name = "rbxlx-to-rojo-json"
 version = "0.1.0"
 dependencies = [
  "rbx_dom_weak",
+ "rbx_types",
  "rbx_xml",
  "serde_json",
 ]

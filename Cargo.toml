@@ -8,5 +8,6 @@ version = "0.1.0"
 
 [dependencies]
 rbx_dom_weak = {git = "https://github.com/rojo-rbx/rbx-dom.git"}
+rbx_types = {git = "https://github.com/rojo-rbx/rbx-dom.git"}
 rbx_xml = {git = "https://github.com/rojo-rbx/rbx-dom.git"}
 serde_json = "1.0"
