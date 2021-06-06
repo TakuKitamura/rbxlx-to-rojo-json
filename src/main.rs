@@ -21,20 +21,150 @@ fn instance_to_flat_json(
         instance_map.insert(child_instance_ref.to_string(), json!({}));
 
         let properties_map = &mut serde_json::Map::new();
-        for (type_name, property_value) in &child_instance.properties {
-            if let Ok(_) = serde_json::to_string(&property_value) {
-                if json!(property_value) == json!({ "Float32": null }) {
-                    properties_map.insert(
-                        type_name.to_string(),
-                        json!({"Type": type_name, "Value": 0.0}),
-                    );
-                    continue;
+        for (property_name, property_value_variant) in &child_instance.properties {
+            let type_name = json!(property_value_variant.ty())
+                .as_str()
+                .unwrap()
+                .to_string();
+            if let Ok(_) = serde_json::to_string(&property_value_variant) {
+                let mut property_value = json!(null);
+
+                let mut find_known_property = false;
+
+                match property_value_variant {
+                    rbx_types::Variant::Axes(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::BinaryString(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::Bool(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::BrickColor(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::CFrame(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::Color3(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::Color3uint8(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::ColorSequence(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::Content(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::Enum(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::Faces(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::Float32(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::Float64(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::Int32(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::Int64(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::NumberRange(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::NumberSequence(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::PhysicalProperties(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::Ray(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::Rect(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::Ref(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::Region3(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::Region3int16(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::String(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::UDim(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::UDim2(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::Vector2(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::Vector2int16(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::Vector3(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::Vector3int16(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    rbx_types::Variant::OptionalCFrame(value) => {
+                        find_known_property = true;
+                        property_value = json!(value);
+                    }
+                    t => println!("Unkown Type: {:?}", t),
                 }
 
-                properties_map.insert(
-                    type_name.to_string(),
-                    json!({"Type": type_name, "Value": property_value}),
-                );
+                if find_known_property {
+                    properties_map.insert(
+                        property_name.to_string(),
+                        json!({"Type": &type_name, "Value": property_value}),
+                    );
+                }
             }
         }
 
@@ -51,7 +181,7 @@ fn instance_to_flat_json(
     }
 }
 
-fn get_rbxlx_json(rbxlx_path: std::string::String) -> std::string::String {
+fn get_rbxlx_json(rbxlx_path: std::string::String) -> serde_json::Value {
     let model_file = match fs::read_to_string(rbxlx_path) {
         Ok(model_file) => model_file,
         Err(error) => panic!("problem opening the file: {:?}", error),
@@ -76,7 +206,7 @@ fn get_rbxlx_json(rbxlx_path: std::string::String) -> std::string::String {
     flat_instances_json[&*root_instance_ref]["$className"] = json!(root_instance.class);
     flat_instances_json[&*root_instance_ref]["$properties"] = json!(root_instance.properties);
 
-    flat_instances_json[&*root_instance_ref]["name"] = json!(root_instance.name);
+    flat_instances_json[&*root_instance_ref]["name"] = json!("DataModel");
     flat_instances_json[&*root_instance_ref]["children"] = json!(root_instance.children());
     flat_instances_json[&*root_instance_ref]["parentClass"] = json!("");
     flat_instances_json[&*root_instance_ref]["parentName"] = json!("");
@@ -147,7 +277,12 @@ fn get_rbxlx_json(rbxlx_path: std::string::String) -> std::string::String {
                     }
                 }
 
-                *rbxlx_json.pointer_mut(&path_str).unwrap() = json!(instance_item);
+                let clean_instance_item = json!({
+                    "$className": instance_item["$className"],
+                    "$properties": instance_item["$properties"],
+
+                });
+                *rbxlx_json.pointer_mut(&path_str).unwrap() = clean_instance_item;
 
                 if children_refs.len() > 0 {
                     let mut children = vec![];
@@ -167,7 +302,7 @@ fn get_rbxlx_json(rbxlx_path: std::string::String) -> std::string::String {
         }
     }
 
-    return serde_json::to_string(&rbxlx_json).unwrap();
+    return rbxlx_json;
 }
 
 fn main() {
@@ -184,7 +319,18 @@ fn main() {
 
     let rbxlx_json = get_rbxlx_json(rbxlx_path);
 
+    let rojo_json = json!({
+        "globIgnorePaths": [
+            "**/package.json",
+            "**/tsconfig.json"
+        ],
+        "name": "test",
+        "tree": rbxlx_json["DataModel"]
+    });
+
+    let json_str = serde_json::to_string(&rojo_json).unwrap();
+
     let mut file = File::create(&rbxlx_json_output_path).unwrap();
-    file.write_all(rbxlx_json.as_bytes()).unwrap();
+    file.write_all(json_str.as_bytes()).unwrap();
     println!("created {} !", &rbxlx_json_output_path);
 }
