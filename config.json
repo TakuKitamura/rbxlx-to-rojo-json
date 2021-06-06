@@ -1,0 +1,22 @@
+{
+    "/globIgnorePaths": [
+        "**/package.json",
+        "**/tsconfig.json"
+    ],
+    "/name": "test",
+    "/tree/ServerScriptService/TS": {
+        "$path": "out/server"
+    },
+    "/tree/ReplicatedStorage/rbxts_include": {
+        "$path": "include",
+        "node_modules": {
+            "$path": "node_modules/@rbxts"
+        }
+    },
+    "/tree/ReplicatedStorage/TS": {
+        "$path": "out/shared"
+    },
+    "/tree/StarterPlayer/StarterPlayerScripts/TS": {
+        "$path": "out/client"
+    }
+}
