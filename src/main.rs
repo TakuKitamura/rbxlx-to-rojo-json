@@ -181,8 +181,10 @@ fn instance_to_flat_json(
                         property_value = json!(first);
                     }
                     rbx_types::Variant::Vector2(value) => {
-                        find_known_property = true;
                         property_value = json!(value);
+                        if property_value[0] != json!(null) && property_value[1] != json!(null) {
+                            find_known_property = true;
+                        }
                     }
                     rbx_types::Variant::Vector2int16(value) => {
                         find_known_property = true;
