@@ -170,7 +170,15 @@ fn instance_to_flat_json(
                     }
                     rbx_types::Variant::UDim2(value) => {
                         find_known_property = true;
+
                         property_value = json!(value);
+
+                        let first = &mut property_value[0].as_array().unwrap().to_vec();
+                        let last = &mut property_value[0].as_array().unwrap().to_vec();
+
+                        first.append(last);
+
+                        property_value = json!(first);
                     }
                     rbx_types::Variant::Vector2(value) => {
                         find_known_property = true;
