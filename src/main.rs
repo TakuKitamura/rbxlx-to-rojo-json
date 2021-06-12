@@ -465,11 +465,21 @@ fn main() {
         // /DataModel@@@c35b90713fc0caaf236f3df0b5d4452c
         let path = elem.0.replace("/tree", "/DataModel");
         let value = elem.1;
-        let custom_path = &path_dict[&path].to_string().replace(root_path, "/tree");
 
-        // println!("{} {}", rojo_json, custom_path);
+        if path_dict.contains_key(&path) {
+            let custom_path = path_dict[&path].to_string().replace(root_path, "/tree");
+            *rojo_json.pointer_mut(&custom_path).unwrap() = json!(value);
+        } else {
+            // path don't exis
+            let mut splited: Vec<&str> = path.split("/").collect();
+            let last_item = splited.pop().unwrap();
+            let joined = splited.join("/");
 
-        *rojo_json.pointer_mut(custom_path).unwrap() = json!(value);
+            let base_path = path_dict[&joined].to_string().replace(root_path, "/tree");
+
+            let base_path_pointer = rojo_json.pointer_mut(&base_path).unwrap();
+            base_path_pointer[last_item] = json!(value)
+        }
     }
 
     let json_str = serde_json::to_string_pretty(&rojo_json).unwrap();
