@@ -1,3 +1,4 @@
+use regex::Regex;
 use serde_json::json;
 use std::collections::HashMap;
 use std::env;
@@ -205,20 +206,23 @@ fn instance_to_flat_json(
 
         instance_map[&*child_instance_ref]["$className"] = json!(child_instance.class);
         instance_map[&*child_instance_ref]["$properties"] = json!(properties_map);
+
         instance_map[&*child_instance_ref]["name"] = json!(format!(
             "{}@@@{}",
             child_instance.name,
             child_instance.referent()
         ));
-        instance_map[&*child_instance_ref]["originalName"] = json!(child_instance.name);
+
+        // instance_map[&*child_instance_ref]["originalName"] = json!(child_instance.name);
         instance_map[&*child_instance_ref]["children"] = json!(child_instance.children());
 
-        instance_map[&*child_instance_ref]["parentClass"] = json!(instance.class);
+        // instance_map[&*child_instance_ref]["parentClass"] = json!(instance.class);
+
         instance_map[&*child_instance_ref]["parentName"] =
             json!(format!("{}@@@{}", instance.name, instance.referent()));
 
-        instance_map[&*child_instance_ref]["originalParentName"] = json!(instance.name);
-        instance_map[&*child_instance_ref]["parentRef"] = json!(instance.referent());
+        // instance_map[&*child_instance_ref]["originalParentName"] = json!(instance.name);
+        // instance_map[&*child_instance_ref]["parentRef"] = json!(instance.referent());
 
         instance_to_flat_json(tree, child_instance, instance_map);
     }
@@ -260,9 +264,9 @@ fn get_rbxlx_json(
         root_instance.referent()
     ));
     flat_instances_json[&*root_instance_ref]["children"] = json!(root_instance.children());
-    flat_instances_json[&*root_instance_ref]["parentClass"] = json!("");
+    // flat_instances_json[&*root_instance_ref]["parentClass"] = json!("");
     flat_instances_json[&*root_instance_ref]["parentName"] = json!("");
-    flat_instances_json[&*root_instance_ref]["parentRef"] = json!("");
+    // flat_instances_json[&*root_instance_ref]["parentRef"] = json!("");
 
     instance_to_flat_json(&tree, root_instance, &mut flat_instances_json);
 
@@ -298,7 +302,7 @@ fn get_rbxlx_json(
     );
 
     let mut next_access_path: Vec<String> = Vec::new();
-    let mut i = 0;
+
     let mut access_path_map: HashMap<String, Vec<String>> = HashMap::new();
     access_path_map.insert(root_instance_name.to_string(), vec![]);
 
@@ -312,7 +316,6 @@ fn get_rbxlx_json(
         refs_array = tmp_refs_array.to_vec();
         tmp_refs_array = Vec::new();
 
-        i = i + 1;
         // println!("--level{:?}--", i);
 
         for refs in refs_array {
@@ -372,6 +375,8 @@ fn get_rbxlx_json(
                     "$properties": instance_item["$properties"],
 
                 });
+
+                // println!("{}", path_str);
 
                 *rbxlx_json.pointer_mut(&path_str).unwrap() = clean_instance_item;
 
@@ -459,7 +464,34 @@ fn main() {
 
     let json_str = serde_json::to_string_pretty(&rojo_json).unwrap();
 
+    let re = Regex::new(r#""(.*@@@.*)""#).unwrap();
+
+    // let mut tmp_refs_array = Vec::new();
+
+    let mut check_duplicate: HashMap<String, i32> = HashMap::new();
+
+    let result = re.replace_all(&json_str, |caps: &regex::Captures| {
+        let match_str = &caps[1];
+        let splited_vecter: Vec<&str> = match_str.split("@@@").collect();
+        let name: &str = splited_vecter[0];
+
+        if name == "TS" {
+            let ret = format!("\"{}\"", name);
+            return ret;
+        }
+
+        if !check_duplicate.contains_key(&name.to_string()) {
+            check_duplicate.insert(name.to_string(), 1);
+            let ret = format!("\"{}\"", name);
+            return ret;
+        } else {
+            *check_duplicate.get_mut(&name.to_string()).unwrap() += 1;
+            let ret = format!("\"{}{}\"", name, check_duplicate[&name.to_string()]);
+            return ret;
+        }
+    });
+
     let mut file = File::create(&rbxlx_json_output_path).unwrap();
-    file.write_all(json_str.as_bytes()).unwrap();
+    file.write_all(result.as_bytes()).unwrap();
     println!("created {} !", &rbxlx_json_output_path);
 }
