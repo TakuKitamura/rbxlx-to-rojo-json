@@ -174,7 +174,7 @@ fn instance_to_flat_json(
                         property_value = json!(value);
 
                         let first = &mut property_value[0].as_array().unwrap().to_vec();
-                        let last = &mut property_value[0].as_array().unwrap().to_vec();
+                        let last = &mut property_value[1].as_array().unwrap().to_vec();
 
                         first.append(last);
 
